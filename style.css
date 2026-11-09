@@ -123,3 +123,20 @@ details summary { cursor: pointer; color: var(--accent); }
 
 .foot { text-align: center; padding: 10px 16px 24px; }
 @media (max-width: 520px) { .kv { grid-template-columns: minmax(0, 1fr); } .part { grid-template-columns: 110px minmax(0, 1fr) 40px; } .groupBox { text-align: left; } }
+
+/* v2: görsel solda, bölgeler/renkler sağda */
+.listCard { display: flex; flex-direction: column; min-height: 0; }
+#listRegions:not([hidden]), #listColors:not([hidden]) { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.listCard .tableWrap { max-height: 560px; flex: 1; }
+.filterRow { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; min-height: 28px; }
+.regHist .hb { padding: 4px 8px; font-size: 12px; }
+.regHist .hb b { font-size: 14px; }
+.note { margin: 8px 0 0; }
+.cid { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 1px 6px; font: 600 12px ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; }
+.cid:hover { border-color: var(--accent); color: var(--accent); }
+.colTable tbody tr { cursor: pointer; }
+.lower { align-items: start; }
+.lower .kv { align-self: stretch; }
+.viewTabs button.on .muted { color: inherit; opacity: .8; }
+.canvasWrap { position: relative; }
+.selBox { position: absolute; pointer-events: none; border: 2px solid var(--accent); box-shadow: 0 0 0 2px rgba(255,255,255,.8); border-radius: 2px; }

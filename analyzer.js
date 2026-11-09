@@ -46,10 +46,20 @@
     }
     const opaque = N - transparent;
 
+    // Görselin içindeki (şeffaf olmayan) içeriğin sınırları
+    let cMinX = W, cMinY = H, cMaxX = -1, cMaxY = -1;
+    for (let i = 0; i < N; i++) {
+      if (key[i] < 0) continue;
+      const x = i % W, y = (i - x) / W;
+      if (x < cMinX) cMinX = x; if (x > cMaxX) cMaxX = x;
+      if (y < cMinY) cMinY = y; if (y > cMaxY) cMaxY = y;
+    }
+    const contentBox = cMaxX < 0 ? null : { minX: cMinX, minY: cMinY, maxX: cMaxX, maxY: cMaxY, width: cMaxX - cMinX + 1, height: cMaxY - cMinY + 1 };
+
     // Palet
     const palette = [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
-      .map(([k, c]) => ({ key: k, hex: keyToHex(k), rgba: keyToRGBA(k), count: c, ratio: opaque ? c / opaque : 0 }));
+      .map(([k, c], i) => ({ id: 'color' + i, key: k, hex: keyToHex(k), rgba: keyToRGBA(k), count: c, ratio: opaque ? c / opaque : 0 }));
     const colorIndex = new Map(palette.map((p, i) => [p.key, i]));
 
     // Bölgeler: aynı renk + 8 yönlü (çapraz dahil) bağlantı
@@ -78,7 +88,7 @@
           }
         }
       }
-      regions.push({ id, color: keyToHex(k), colorIndex: colorIndex.get(k), size, bbox: [minX, minY, maxX, maxY] });
+      regions.push({ id, color: keyToHex(k), colorIndex: colorIndex.get(k), colorId: 'color' + colorIndex.get(k), size, bbox: [minX, minY, maxX, maxY] });
     }
 
     // Komşu farklı renk geçişleri (4 yönlü, sadece opak-opak çiftler)
@@ -112,7 +122,8 @@
       colorCount: palette.length,
       palette,
       regionCount: regions.length,
-      regions: regions.slice().sort((a, b) => b.size - a.size),
+      regions: regions.slice().sort((a, b) => a.size - b.size || a.colorIndex - b.colorIndex || a.id - b.id),
+      contentBox,
       smallRegionCount: smallRegions,
       labels: label,
       outline, group, features, score,

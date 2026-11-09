@@ -42,11 +42,45 @@
             <button data-view="outline">Kenar pikselleri</button>
           </div>
           <div class="canvasWrap checker"><canvas id="cv"></canvas></div>
-          <div id="hover" class="hover muted">Görselin üzerine gel: koordinat, renk ve bölge bilgisi.</div>
+          <div id="hover" class="hover muted">Görselin üzerine gel: koordinat, renk ve bölge bilgisi. Tıkla: bölgeyi seç.</div>
           <div id="selInfo" class="selInfo" hidden></div>
         </div>
 
-        <div class="stats">
+        <div class="card listCard">
+          <div class="viewTabs listTabs" role="tablist">
+            <button data-list="regions" class="on">Bölgeler <span id="tRegN" class="muted"></span></button>
+            <button data-list="colors">Renkler <span id="tColN" class="muted"></span></button>
+          </div>
+
+          <div id="listRegions">
+            <div class="filterRow">
+              <span id="regFilter" class="small muted">Tüm renkler · küçükten büyüğe</span>
+              <button id="regFilterClr" class="btn small ghost" hidden>Filtreyi kaldır</button>
+            </div>
+            <div id="regHist" class="regHist"></div>
+            <div class="tableWrap">
+              <table class="regTable">
+                <thead><tr><th>#</th><th>Renk</th><th class="num">Piksel</th><th>Konum (x,y → x,y)</th></tr></thead>
+                <tbody id="regBody"></tbody>
+              </table>
+            </div>
+            <button id="regMore" class="btn ghost" hidden></button>
+            <p class="muted small note">Bölge = aynı renkte, çapraz dahil (8 yönlü) birbirine değen pikseller. Satıra tıkla: o bölge seçilir. Renk id'sine tıkla: o rengin bölgeleri listelenir.</p>
+          </div>
+
+          <div id="listColors" hidden>
+            <div class="tableWrap">
+              <table class="regTable colTable">
+                <thead><tr><th>Id</th><th>Renk</th><th class="num">Piksel</th><th class="num">Oran</th><th class="num">Bölge</th></tr></thead>
+                <tbody id="palette"></tbody>
+              </table>
+            </div>
+            <p class="muted small note">Sıralama: en çok kullanılan renk color0. Satıra tıkla: renk tek başına seçilir ve görselde vurgulanır.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2 lower">
           <div class="card score">
             <div class="scoreTop">
               <div>
@@ -76,33 +110,15 @@
               </div>
             </details>
           </div>
-
-          <div class="kv">
+        <div class="kv">
             <div class="card"><div class="k">Dosya adı</div><div id="vName" class="v ellipsis"></div></div>
-            <div class="card"><div class="k">Boyut</div><div id="vSize" class="v"></div><div id="vCells" class="muted small"></div></div>
+            <div class="card"><div class="k">Görsel çözünürlüğü</div><div id="vSize" class="v"></div><div id="vCells" class="muted small"></div></div>
             <div class="card"><div class="k">Renk sayısı</div><div id="vColors" class="v"></div></div>
             <div class="card"><div class="k">Şeffaf piksel oranı</div><div id="vTr" class="v"></div><div id="vTrN" class="muted small"></div></div>
             <div class="card"><div class="k">Outline</div><div id="vOl" class="v"></div><div id="vOlD" class="muted small"></div></div>
+            <div class="card"><div class="k">İçerik sınırları</div><div id="vBox" class="v"></div><div id="vBoxD" class="muted small"></div></div>
             <div class="card"><div class="k">Bölge sayısı</div><div id="vReg" class="v"></div><div id="vRegD" class="muted small"></div></div>
           </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="secHead"><h3>Renk paleti</h3><span class="muted small">Bir renge tıkla: görselde vurgulanır. Sıralama: kullanım miktarı.</span></div>
-        <div id="palette" class="palette"></div>
-      </div>
-
-      <div class="card">
-        <div class="secHead"><h3>Bölgeler</h3><span class="muted small">Bölge = aynı renkte, çapraz dahil (8 yönlü) birbirine değen pikseller. Bir satıra tıkla: görselde vurgulanır.</span></div>
-        <div id="regHist" class="regHist"></div>
-        <div class="tableWrap">
-          <table class="regTable">
-            <thead><tr><th>#</th><th>Renk</th><th class="num">Piksel</th><th class="num">Oran</th><th>Konum (x,y → x,y)</th></tr></thead>
-            <tbody id="regBody"></tbody>
-          </table>
-        </div>
-        <button id="regMore" class="btn ghost" hidden></button>
       </div>
     </div>
   </section>

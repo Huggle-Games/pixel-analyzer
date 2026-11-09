@@ -18,6 +18,7 @@
   let view = 'image';
   let selection = null; // {type:'color', key} | {type:'region', id}
   let regLimit = 200;
+  let regFilter = null; // renk filtresi (palet index)
 
   // ---------- IndexedDB ----------
   const DB = {
@@ -125,7 +126,7 @@
 
   // ---------- Sonuç gösterimi ----------
   function show(state) {
-    cur = state; selection = null; regLimit = 200;
+    cur = state; selection = null; regFilter = null; regLimit = 200;
     const r = state.res;
     $('empty').hidden = true; $('result').hidden = false;
     $('rName').textContent = state.name;
@@ -157,47 +158,88 @@
       : 'opak piksel yok';
     $('vReg').textContent = fmt(r.regionCount);
     $('vRegD').textContent = `ort. ${r.features.avgRegionSize.toFixed(1)} px · ${fmt(r.smallRegionCount)} bölge ≤4 px`;
+    const b = r.contentBox;
+    $('vBox').textContent = b ? `${b.width} × ${b.height} px` : '—';
+    $('vBoxD').textContent = b ? `x: ${b.minX}–${b.maxX} · y: ${b.minY}–${b.maxY} (şeffaf olmayan alan)` : 'opak piksel yok';
+    $('tRegN').textContent = fmt(r.regionCount);
+    $('tColN').textContent = fmt(r.colorCount);
 
-    renderPalette(); renderRegions(); setupCanvas(); draw();
+    renderPalette(); renderRegions(); setupCanvas(); syncSelection();
     document.querySelectorAll('.history li').forEach((li) => li.classList.toggle('sel', +li.dataset.id === state.historyId));
   }
 
+  const colorTag = (idx) => {
+    const p = cur.res.palette[idx];
+    return `<button class="cid" data-ci="${idx}" title="${p.hex.toUpperCase()}"><span class="sw" style="background:${p.hex}"></span> ${p.id}</button>`;
+  };
+
   function renderPalette() {
     const r = cur.res;
+    const regPerColor = new Array(r.palette.length).fill(0);
+    for (const g of r.regions) regPerColor[g.colorIndex]++;
     $('palette').innerHTML = r.palette.map((p, i) =>
-      `<button class="pc" data-i="${i}"><span class="chip" style="background:${p.hex}"></span><span><span class="hx">${p.hex.toUpperCase()}</span><br><span class="ct">${fmt(p.count)} px · ${pct(p.ratio)}</span></span></button>`
+      `<tr data-ci="${i}"><td><b>${p.id}</b></td><td><span class="sw" style="background:${p.hex}"></span> <code>${p.hex.toUpperCase()}</code></td><td class="num">${fmt(p.count)}</td><td class="num">${pct(p.ratio)}</td><td class="num">${fmt(regPerColor[i])}</td></tr>`
     ).join('');
   }
+  function selectColor(idx) {
+    if (selection && selection.type === 'color' && selection.idx === idx) { selection = null; regFilter = null; }
+    else { selection = { type: 'color', idx }; regFilter = idx; }
+    regLimit = 200;
+    renderRegions(); syncSelection();
+  }
   $('palette').addEventListener('click', (e) => {
-    const b = e.target.closest('.pc'); if (!b) return;
-    const p = cur.res.palette[+b.dataset.i];
-    selection = selection && selection.type === 'color' && selection.key === p.key ? null : { type: 'color', key: p.key, idx: +b.dataset.i };
-    syncSelection();
+    const tr = e.target.closest('tr[data-ci]'); if (!tr) return;
+    selectColor(+tr.dataset.ci);
   });
 
   function renderRegions() {
-    const r = cur.res, regs = r.regions;
+    const r = cur.res;
+    const regs = regFilter === null ? r.regions : r.regions.filter((g) => g.colorIndex === regFilter);
     const buckets = [['1 px', 1, 1], ['2–4 px', 2, 4], ['5–20 px', 5, 20], ['21–100 px', 21, 100], ['100+ px', 101, Infinity]];
-    $('regHist').innerHTML = buckets.map(([l, a, b]) => `<div class="hb"><b>${fmt(regs.filter((x) => x.size >= a && x.size <= b).length)}</b> bölge · ${l}</div>`).join('');
+    $('regHist').innerHTML = buckets.map(([l, a, b]) => `<div class="hb"><b>${fmt(regs.filter((x) => x.size >= a && x.size <= b).length)}</b> · ${l}</div>`).join('');
+    $('regFilter').innerHTML = regFilter === null
+      ? `Tüm renkler · ${fmt(regs.length)} bölge · küçükten büyüğe`
+      : `Filtre: ${colorTag(regFilter)} · ${fmt(regs.length)} bölge · küçükten büyüğe`;
+    $('regFilterClr').hidden = regFilter === null;
     const shown = regs.slice(0, regLimit);
     $('regBody').innerHTML = shown.map((g, i) =>
-      `<tr data-id="${g.id}"><td>${i + 1}</td><td><span class="sw" style="background:${g.color}"></span> <code>${g.color.toUpperCase()}</code></td><td class="num">${fmt(g.size)}</td><td class="num">${pct(g.size / r.opaquePixels, 2)}</td><td>${g.bbox[0]},${g.bbox[1]} → ${g.bbox[2]},${g.bbox[3]}</td></tr>`
+      `<tr data-id="${g.id}"><td>${i + 1}</td><td>${colorTag(g.colorIndex)}</td><td class="num">${fmt(g.size)}</td><td>${g.bbox[0]},${g.bbox[1]} → ${g.bbox[2]},${g.bbox[3]}</td></tr>`
     ).join('');
     const more = $('regMore');
     more.hidden = regs.length <= regLimit;
     more.textContent = `Tümünü göster (${fmt(regs.length)} bölge)`;
   }
   $('regMore').addEventListener('click', () => { regLimit = Infinity; renderRegions(); syncSelection(); });
-  $('regBody').addEventListener('click', (e) => {
-    const tr = e.target.closest('tr'); if (!tr) return;
+  $('regFilterClr').addEventListener('click', () => {
+    regFilter = null; if (selection && selection.type === 'color') selection = null;
+    renderRegions(); syncSelection();
+  });
+  $('listRegions').addEventListener('click', (e) => {
+    const c = e.target.closest('.cid');
+    if (c) { e.stopPropagation(); selectColor(+c.dataset.ci); return; }
+    const tr = e.target.closest('#regBody tr'); if (!tr) return;
     const id = +tr.dataset.id;
     selection = selection && selection.type === 'region' && selection.id === id ? null : { type: 'region', id };
     syncSelection();
   });
+  document.querySelectorAll('.listTabs button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.listTabs button').forEach((x) => x.classList.toggle('on', x === b));
+    $('listRegions').hidden = b.dataset.list !== 'regions';
+    $('listColors').hidden = b.dataset.list !== 'colors';
+  }));
 
   function syncSelection() {
-    document.querySelectorAll('.pc').forEach((b) => b.classList.toggle('sel', !!selection && selection.type === 'color' && +b.dataset.i === selection.idx));
-    document.querySelectorAll('#regBody tr').forEach((tr) => tr.classList.toggle('sel', !!selection && selection.type === 'region' && +tr.dataset.id === selection.id));
+    document.querySelectorAll('#palette tr').forEach((tr) => tr.classList.toggle('sel', !!selection && selection.type === 'color' && +tr.dataset.ci === selection.idx));
+    let selRow = null;
+    document.querySelectorAll('#regBody tr').forEach((tr) => {
+      const on = !!selection && selection.type === 'region' && +tr.dataset.id === selection.id;
+      tr.classList.toggle('sel', on); if (on) selRow = tr;
+    });
+    if (selRow) {
+      const wrap = selRow.closest('.tableWrap'), rt = selRow.offsetTop, h = wrap.clientHeight;
+      if (rt < wrap.scrollTop + 30 || rt > wrap.scrollTop + h - 30) wrap.scrollTop = rt - h / 2;
+    }
+    placeSelBox();
     const si = $('selInfo');
     if (!selection) { si.hidden = true; }
     else {
@@ -205,15 +247,30 @@
       if (selection.type === 'color') {
         const p = cur.res.palette[selection.idx];
         const n = cur.res.regions.filter((g) => g.colorIndex === selection.idx).length;
-        si.innerHTML = `Seçili renk <span class="sw" style="background:${p.hex}"></span> <b>${p.hex.toUpperCase()}</b> · ${fmt(p.count)} px · ${fmt(n)} bölge <button class="btn small ghost" id="clrSel">Seçimi kaldır</button>`;
+        si.innerHTML = `Seçili renk <b>${p.id}</b> <span class="sw" style="background:${p.hex}"></span> ${p.hex.toUpperCase()} · ${fmt(p.count)} px · ${fmt(n)} bölge <button class="btn small ghost" id="clrSel">Seçimi kaldır</button>`;
       } else {
         const g = cur.res.regions.find((x) => x.id === selection.id);
-        si.innerHTML = `Seçili bölge <span class="sw" style="background:${g.color}"></span> <b>${g.color.toUpperCase()}</b> · ${fmt(g.size)} px <button class="btn small ghost" id="clrSel">Seçimi kaldır</button>`;
+        si.innerHTML = `Seçili bölge: <b>${g.colorId}</b> <span class="sw" style="background:${g.color}"></span> ${g.color.toUpperCase()} · ${fmt(g.size)} px · x ${g.bbox[0]}–${g.bbox[2]}, y ${g.bbox[1]}–${g.bbox[3]} <button class="btn small ghost" id="clrSel">Seçimi kaldır</button>`;
       }
       $('clrSel').onclick = () => { selection = null; syncSelection(); };
     }
     draw();
   }
+
+  // Seçili bölgenin etrafına çerçeve (1 px'lik bölgeler de görünsün diye)
+  function placeSelBox() {
+    let box = document.querySelector('.selBox');
+    if (!selection || selection.type !== 'region') { if (box) box.remove(); return; }
+    const g = cur.res.regions.find((x) => x.id === selection.id);
+    if (!box) { box = document.createElement('div'); box.className = 'selBox'; cv.parentNode.appendChild(box); }
+    const wr = cv.parentNode.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+    const sx = cr.width / cur.res.width, sy = cr.height / cur.res.height, pad = 3;
+    box.style.left = (cr.left - wr.left + g.bbox[0] * sx - pad) + 'px';
+    box.style.top = (cr.top - wr.top + g.bbox[1] * sy - pad) + 'px';
+    box.style.width = ((g.bbox[2] - g.bbox[0] + 1) * sx + pad * 2) + 'px';
+    box.style.height = ((g.bbox[3] - g.bbox[1] + 1) * sy + pad * 2) + 'px';
+  }
+  window.addEventListener('resize', () => { if (cur) placeSelBox(); });
 
   // ---------- Tuval ----------
   const cv = $('cv');
@@ -270,7 +327,7 @@
         const on = selection.type === 'region' ? lab === selection.id : selRegionSet.has(lab);
         if (!on) dim = true;
       }
-      if (dim) { A = Math.round(A * 0.15); }
+      if (dim) { A = Math.round(A * (selection && selection.type === "region" ? 0.1 : 0.15)); }
       d[p] = R; d[p + 1] = G; d[p + 2] = B; d[p + 3] = A;
     }
     cv.getContext('2d').putImageData(out, 0, 0);
@@ -290,7 +347,7 @@
     const i = y * r.width + x, lab = r.labels[i];
     if (lab < 0) { $('hover').textContent = `x ${x}, y ${y} · şeffaf`; return; }
     const g = r.regions.find((q) => q.id === lab);
-    $('hover').innerHTML = `x ${x}, y ${y} · <span class="sw" style="background:${g.color}"></span> ${g.color.toUpperCase()} · bölge ${fmt(g.size)} px`;
+    $('hover').innerHTML = `x ${x}, y ${y} · <b>${g.colorId}</b> <span class="sw" style="background:${g.color}"></span> ${g.color.toUpperCase()} · bölge ${fmt(g.size)} px`;
   });
   cv.addEventListener('click', (e) => {
     if (!cur) return;
@@ -314,10 +371,11 @@
     const r = cur.res;
     const data = {
       fileName: cur.name, width: r.width, height: r.height, colorCount: r.colorCount,
-      palette: r.palette.map((p) => ({ hex: p.hex, count: p.count })),
+      palette: r.palette.map((p) => ({ id: p.id, hex: p.hex, count: p.count })),
+      contentBox: r.contentBox,
       transparentPixels: r.transparentPixels, transparentRatio: r.transparentRatio, isFull: r.isFull,
       outline: r.outline, difficultyGroup: r.group,
-      regionCount: r.regionCount, regions: r.regions.map((g) => ({ color: g.color, pixels: g.size, bbox: g.bbox })),
+      regionCount: r.regionCount, regions: r.regions.map((g) => ({ colorId: g.colorId, color: g.color, pixels: g.size, bbox: g.bbox })),
       difficultyScore: r.score, features: r.features,
     };
     download(cur.name.replace(/\.png$/i, '') + '-analiz.json', JSON.stringify(data, null, 2), 'application/json');
