@@ -142,10 +142,14 @@ details summary { cursor: pointer; color: var(--accent); }
 .selBox { position: absolute; pointer-events: none; border: 2px solid var(--accent); box-shadow: 0 0 0 2px rgba(255,255,255,.8); border-radius: 2px; }
 .smallTag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
 /* yakınlaştır / kaydır */
-.canvasWrap { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 620px; touch-action: none; cursor: grab; user-select: none; }
-.canvasWrap.dragging, .canvasWrap.dragging #cv { cursor: grabbing; }
+.canvasWrap { display: block; width: 100%; aspect-ratio: 1 / 1; max-height: 620px; user-select: none; }
 #cv { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; }
 .zoomBar { position: absolute; right: 8px; top: 8px; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; box-shadow: 0 1px 4px rgba(0,0,0,.12); z-index: 2; }
 .zoomBar button { border: 0; background: transparent; border-radius: 6px; min-width: 28px; height: 28px; padding: 0 8px; font-size: 14px; }
 .zoomBar button:hover { background: var(--accent-soft); color: var(--accent); }
 .zoomBar span { min-width: 46px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.canvasWrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panPad { position: absolute; right: 8px; bottom: 8px; display: grid; grid-template-columns: repeat(3, 26px); grid-template-rows: repeat(3, 26px); gap: 2px; z-index: 2; }
+.panPad button { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; font-size: 10px; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.panPad button:hover { background: var(--accent-soft); color: var(--accent); }
+.panPad .pu { grid-area: 1 / 2; } .panPad .pl { grid-area: 2 / 1; } .panPad .pr { grid-area: 2 / 3; } .panPad .pd { grid-area: 3 / 2; }

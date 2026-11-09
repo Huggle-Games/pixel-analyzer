@@ -306,54 +306,30 @@
   $('zIn').addEventListener('click', () => zoomAt(1.5, ...center()));
   $('zOut').addEventListener('click', () => zoomAt(1 / 1.5, ...center()));
   $('zFit').addEventListener('click', fitView);
-  wrap.addEventListener('dblclick', (e) => { if (!e.target.closest('.zoomBar')) fitView(); });
-  wrap.addEventListener('wheel', (e) => {
+  // Yön butonları: görünür alanın %20'si kadar kaydırır
+  function pan(dx, dy) {
     if (!cur) return;
-    e.preventDefault();
-    const b = wrap.getBoundingClientRect();
-    const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-    zoomAt(Math.pow(1.0015, -d), e.clientX - b.left, e.clientY - b.top);
-  }, { passive: false });
-
-  const ptrs = new Map();
-  let drag = null; // { x, y, tx, ty, moved }
-  let pinch = null; // { dist, mx, my }
-  wrap.addEventListener('pointerdown', (e) => {
-    if (!cur || e.target.closest('.zoomBar')) return;
-    wrap.setPointerCapture(e.pointerId);
-    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx: vp.tx, ty: vp.ty, moved: false };
-    else if (ptrs.size === 2) {
-      const [a, b] = [...ptrs.values()];
-      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) };
-      if (drag) drag.moved = true;
-    }
+    vp.tx += dx * wrap.clientWidth * 0.2; vp.ty += dy * wrap.clientHeight * 0.2;
+    applyView();
+  }
+  document.querySelectorAll('.panPad button').forEach((btn) => btn.addEventListener('click', () => {
+    const [dx, dy] = btn.dataset.pan.split(',').map(Number); pan(dx, dy);
+  }));
+  // Klavye: görüntüleyici odaktayken ok tuşları ve + / −
+  wrap.tabIndex = 0;
+  wrap.addEventListener('keydown', (e) => {
+    const k = e.key;
+    const m = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[k];
+    if (m) { e.preventDefault(); pan(...m); }
+    else if (k === '+' || k === '=') { e.preventDefault(); zoomAt(1.5, ...center()); }
+    else if (k === '-' || k === '_') { e.preventDefault(); zoomAt(1 / 1.5, ...center()); }
+    else if (k === '0') { e.preventDefault(); fitView(); }
   });
-  wrap.addEventListener('pointermove', (e) => {
-    if (!ptrs.has(e.pointerId)) return;
-    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch && ptrs.size === 2) {
-      const [a, b] = [...ptrs.values()], bx = wrap.getBoundingClientRect();
-      const dist = Math.hypot(a.x - b.x, a.y - b.y);
-      zoomAt(dist / pinch.dist, (a.x + b.x) / 2 - bx.left, (a.y + b.y) / 2 - bx.top);
-      pinch.dist = dist;
-    } else if (drag && ptrs.size === 1) {
-      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; wrap.classList.add('dragging'); }
-      if (drag.moved) { vp.tx = drag.tx + dx; vp.ty = drag.ty + dy; applyView(); }
-    }
+  wrap.addEventListener('click', (e) => {
+    if (!cur || e.target.closest('.zoomBar, .panPad')) return;
+    wrap.focus({ preventScroll: true });
+    selectAt(e.clientX, e.clientY);
   });
-  const endPtr = (e) => {
-    if (!ptrs.has(e.pointerId)) return;
-    ptrs.delete(e.pointerId);
-    if (ptrs.size < 2) pinch = null;
-    if (ptrs.size === 0) {
-      if (drag && !drag.moved && e.type === 'pointerup') selectAt(e.clientX, e.clientY);
-      drag = null; wrap.classList.remove('dragging');
-    }
-  };
-  wrap.addEventListener('pointerup', endPtr);
-  wrap.addEventListener('pointercancel', endPtr);
 
   function setupCanvas() {
     const r = cur.res;
