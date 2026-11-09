@@ -272,17 +272,93 @@
     box.style.width = ((g.bbox[2] - g.bbox[0] + 1) * sx + pad * 2) + 'px';
     box.style.height = ((g.bbox[3] - g.bbox[1] + 1) * sy + pad * 2) + 'px';
   }
-  window.addEventListener('resize', () => { if (cur) placeSelBox(); });
+  window.addEventListener('resize', () => { if (cur) fitView(); });
 
   // ---------- Tuval ----------
   const cv = $('cv');
+  // ---------- Yakınlaştırma ve kaydırma ----------
+  const wrap = $('cvWrap');
+  const vp = { z: 1, tx: 0, ty: 0, fitZ: 1 };
+  function applyView() {
+    const r = cur.res;
+    cv.style.width = r.width * vp.z + 'px';
+    cv.style.height = r.height * vp.z + 'px';
+    cv.style.transform = `translate(${vp.tx}px, ${vp.ty}px)`;
+    $('zLbl').textContent = Math.round(vp.z / vp.fitZ * 100) + '%';
+    placeSelBox();
+  }
+  function fitView() {
+    if (!cur) return;
+    const r = cur.res, ww = wrap.clientWidth, wh = wrap.clientHeight;
+    let z = Math.min(ww / r.width, wh / r.height) * 0.96;
+    if (z >= 1) z = Math.max(1, Math.floor(z * 4) / 4);
+    vp.fitZ = z; vp.z = z;
+    vp.tx = (ww - r.width * z) / 2; vp.ty = (wh - r.height * z) / 2;
+    applyView();
+  }
+  function zoomAt(factor, cx, cy) {
+    const nz = Math.min(Math.max(vp.z * factor, vp.fitZ * 0.5), Math.max(64, vp.fitZ * 4));
+    const f = nz / vp.z;
+    vp.tx = cx - (cx - vp.tx) * f; vp.ty = cy - (cy - vp.ty) * f; vp.z = nz;
+    applyView();
+  }
+  const center = () => [wrap.clientWidth / 2, wrap.clientHeight / 2];
+  $('zIn').addEventListener('click', () => zoomAt(1.5, ...center()));
+  $('zOut').addEventListener('click', () => zoomAt(1 / 1.5, ...center()));
+  $('zFit').addEventListener('click', fitView);
+  wrap.addEventListener('dblclick', (e) => { if (!e.target.closest('.zoomBar')) fitView(); });
+  wrap.addEventListener('wheel', (e) => {
+    if (!cur) return;
+    e.preventDefault();
+    const b = wrap.getBoundingClientRect();
+    const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    zoomAt(Math.pow(1.0015, -d), e.clientX - b.left, e.clientY - b.top);
+  }, { passive: false });
+
+  const ptrs = new Map();
+  let drag = null; // { x, y, tx, ty, moved }
+  let pinch = null; // { dist, mx, my }
+  wrap.addEventListener('pointerdown', (e) => {
+    if (!cur || e.target.closest('.zoomBar')) return;
+    wrap.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx: vp.tx, ty: vp.ty, moved: false };
+    else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) };
+      if (drag) drag.moved = true;
+    }
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()], bx = wrap.getBoundingClientRect();
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      zoomAt(dist / pinch.dist, (a.x + b.x) / 2 - bx.left, (a.y + b.y) / 2 - bx.top);
+      pinch.dist = dist;
+    } else if (drag && ptrs.size === 1) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; wrap.classList.add('dragging'); }
+      if (drag.moved) { vp.tx = drag.tx + dx; vp.ty = drag.ty + dy; applyView(); }
+    }
+  });
+  const endPtr = (e) => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (ptrs.size === 0) {
+      if (drag && !drag.moved && e.type === 'pointerup') selectAt(e.clientX, e.clientY);
+      drag = null; wrap.classList.remove('dragging');
+    }
+  };
+  wrap.addEventListener('pointerup', endPtr);
+  wrap.addEventListener('pointercancel', endPtr);
+
   function setupCanvas() {
     const r = cur.res;
     cv.width = r.width; cv.height = r.height;
-    const scale = Math.max(1, Math.floor(560 / Math.max(r.width, r.height)));
-    cv.style.width = r.width * scale + 'px';
-    cv.style.height = 'auto';
-    cv.style.aspectRatio = r.width + ' / ' + r.height;
+    fitView();
   }
 
   function regionColor(id) {
@@ -351,15 +427,14 @@
     const g = r.regions.find((q) => q.id === lab);
     $('hover').innerHTML = `x ${x}, y ${y} · <b>${g.colorId}</b> <span class="sw" style="background:${g.color}"></span> ${g.color.toUpperCase()} · bölge ${fmt(g.size)} px`;
   });
-  cv.addEventListener('click', (e) => {
-    if (!cur) return;
+  function selectAt(clientX, clientY) {
     const rect = cv.getBoundingClientRect(), r = cur.res;
-    const x = Math.floor((e.clientX - rect.left) / rect.width * r.width), y = Math.floor((e.clientY - rect.top) / rect.height * r.height);
-    const lab = r.labels[y * r.width + x];
-    if (lab === undefined || lab < 0) { selection = null; syncSelection(); return; }
+    const x = Math.floor((clientX - rect.left) / rect.width * r.width), y = Math.floor((clientY - rect.top) / rect.height * r.height);
+    const lab = x >= 0 && y >= 0 && x < r.width && y < r.height ? r.labels[y * r.width + x] : -1;
+    if (lab < 0) { selection = null; syncSelection(); return; }
     selection = selection && selection.type === 'region' && selection.id === lab ? null : { type: 'region', id: lab };
     syncSelection();
-  });
+  }
 
   // ---------- JSON indirme ----------
   function download(name, text, type) {

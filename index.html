@@ -41,8 +41,15 @@
             <button data-view="regions">Bölge haritası</button>
             <button data-view="outline">Kenar pikselleri</button>
           </div>
-          <div class="canvasWrap checker"><canvas id="cv"></canvas></div>
-          <div id="hover" class="hover muted">Görselin üzerine gel: koordinat, renk ve bölge bilgisi. Tıkla: bölgeyi seç.</div>
+          <div class="canvasWrap checker" id="cvWrap"><canvas id="cv"></canvas>
+            <div class="zoomBar">
+              <button id="zOut" title="Uzaklaş">−</button>
+              <span id="zLbl">100%</span>
+              <button id="zIn" title="Yakınlaş">+</button>
+              <button id="zFit" title="Ekrana sığdır">Sığdır</button>
+            </div>
+          </div>
+          <div id="hover" class="hover muted">Tekerlek / iki parmak: yakınlaş · sürükle: kaydır · tıkla: bölgeyi seç · çift tıkla: sığdır.</div>
           <div id="selInfo" class="selInfo" hidden></div>
         </div>
 
