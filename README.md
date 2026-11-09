@@ -8,7 +8,8 @@ Yarn oyunu (Yarnscapes benzeri) için pixel-art PNG analiz aracı. Tamamen taray
 - Şeffaf piksel oranı (alfa = 0 olan pikseller)
 - Outline var/yok
 - Zorluk grubu: Tutorial 64×64 dolu değil · Normal 128×128 dolu değil · Hard 128×128 tam dolu · Super Hard 256×256 dolu değil. "Tam dolu" = hiç şeffaf piksel yok. Standart dışı boyutlar en yakın gruba (logaritmik yakınlık, büyük kenar) atanır ve uyarı gösterilir.
-- Bölgeler: aynı renkte, çapraz dahil 8 yönlü birbirine değen pikseller. Her bölgenin renk id'si, piksel sayısı ve konumu; liste küçükten büyüğe sıralı, renk id'sine göre filtrelenebilir.
+- Bölgeler: aynı renkte, çapraz dahil 8 yönlü birbirine değen pikseller. Her bölgenin renk id'si, piksel sayısı, konumu ve küçük bölge (1–3 px) etiketi; liste küçükten büyüğe sıralı, renk id'sine göre filtrelenebilir.
+- Küçük bölge oranı: 1–3 px bölgelerin tüm bölgelere oranı
 - Zorluk skoru (0–100)
 - Geçmiş: yüklenen dosyalar ve sonuçlar tarayıcının IndexedDB'sinde saklanır, CSV olarak dışa aktarılabilir.
 

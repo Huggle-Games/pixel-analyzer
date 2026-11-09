@@ -16,6 +16,9 @@
   ];
 
   // Zorluk skoru ağırlıkları (toplam 1). Ayrıntılar README / "Skor nasıl hesaplanır" bölümünde.
+  // Küçük bölge: 1–3 piksellik bölge
+  const SMALL_REGION_MAX = 3;
+
   const WEIGHTS = { cells: 0.30, colors: 0.20, regions: 0.20, fragment: 0.15, edges: 0.15 };
 
   const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -102,7 +105,8 @@
     const outline = detectOutline(W, H, key);
     const group = classifyGroup(W, H, transparent);
 
-    const smallRegions = regions.filter((r) => r.size <= 4).length;
+    for (const r of regions) r.small = r.size <= SMALL_REGION_MAX;
+    const smallRegions = regions.filter((r) => r.small).length;
     const features = {
       cells: opaque,
       colors: palette.length,
@@ -125,6 +129,7 @@
       regions: regions.slice().sort((a, b) => a.size - b.size || a.colorIndex - b.colorIndex || a.id - b.id),
       contentBox,
       smallRegionCount: smallRegions,
+      smallRegionRatio: regions.length ? smallRegions / regions.length : 0,
       labels: label,
       outline, group, features, score,
     };
@@ -229,5 +234,5 @@
     return { value, label, parts, weights: WEIGHTS };
   }
 
-  return { analyze, classifyGroup, detectOutline, difficultyScore, GROUPS, WEIGHTS };
+  return { SMALL_REGION_MAX, analyze, classifyGroup, detectOutline, difficultyScore, GROUPS, WEIGHTS };
 });

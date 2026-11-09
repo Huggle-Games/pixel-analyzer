@@ -88,7 +88,7 @@
 
   function summary(res) {
     return {
-      width: res.width, height: res.height, colors: res.colorCount, regions: res.regionCount,
+      width: res.width, height: res.height, colors: res.colorCount, regions: res.regionCount, smallRegionRatio: res.smallRegionRatio,
       transparentRatio: res.transparentRatio, outline: res.outline.has, group: res.group.name,
       groupWarn: res.group.warnings.length > 0, score: res.score.value,
     };
@@ -157,7 +157,9 @@
         `kenarın ${pct(o.contourRatio, 0)}'ı koyu kontur, ${pct(o.dominantRatio, 0)}'ı tek renk`
       : 'opak piksel yok';
     $('vReg').textContent = fmt(r.regionCount);
-    $('vRegD').textContent = `ort. ${r.features.avgRegionSize.toFixed(1)} px · ${fmt(r.smallRegionCount)} bölge ≤4 px`;
+    $('vRegD').textContent = `ort. ${r.features.avgRegionSize.toFixed(1)} px bölge başına`;
+    $('vSmall').textContent = pct(r.smallRegionRatio);
+    $('vSmallD').textContent = `${fmt(r.smallRegionCount)} / ${fmt(r.regionCount)} bölge 1–3 px`;
     const b = r.contentBox;
     $('vBox').textContent = b ? `${b.width} × ${b.height} px` : '—';
     $('vBoxD').textContent = b ? `x: ${b.minX}–${b.maxX} · y: ${b.minY}–${b.maxY} (şeffaf olmayan alan)` : 'opak piksel yok';
@@ -195,7 +197,7 @@
   function renderRegions() {
     const r = cur.res;
     const regs = regFilter === null ? r.regions : r.regions.filter((g) => g.colorIndex === regFilter);
-    const buckets = [['1 px', 1, 1], ['2–4 px', 2, 4], ['5–20 px', 5, 20], ['21–100 px', 21, 100], ['100+ px', 101, Infinity]];
+    const buckets = [['1–3 px (küçük)', 1, 3], ['4–20 px', 4, 20], ['21–100 px', 21, 100], ['100+ px', 101, Infinity]];
     $('regHist').innerHTML = buckets.map(([l, a, b]) => `<div class="hb"><b>${fmt(regs.filter((x) => x.size >= a && x.size <= b).length)}</b> · ${l}</div>`).join('');
     $('regFilter').innerHTML = regFilter === null
       ? `Tüm renkler · ${fmt(regs.length)} bölge · küçükten büyüğe`
@@ -203,7 +205,7 @@
     $('regFilterClr').hidden = regFilter === null;
     const shown = regs.slice(0, regLimit);
     $('regBody').innerHTML = shown.map((g, i) =>
-      `<tr data-id="${g.id}"><td>${i + 1}</td><td>${colorTag(g.colorIndex)}</td><td class="num">${fmt(g.size)}</td><td>${g.bbox[0]},${g.bbox[1]} → ${g.bbox[2]},${g.bbox[3]}</td></tr>`
+      `<tr data-id="${g.id}"><td>${i + 1}</td><td>${colorTag(g.colorIndex)}</td><td class="num">${fmt(g.size)}</td><td>${g.small ? '<span class="smallTag">küçük</span>' : ''}</td><td>${g.bbox[0]},${g.bbox[1]} → ${g.bbox[2]},${g.bbox[3]}</td></tr>`
     ).join('');
     const more = $('regMore');
     more.hidden = regs.length <= regLimit;
@@ -375,7 +377,8 @@
       contentBox: r.contentBox,
       transparentPixels: r.transparentPixels, transparentRatio: r.transparentRatio, isFull: r.isFull,
       outline: r.outline, difficultyGroup: r.group,
-      regionCount: r.regionCount, regions: r.regions.map((g) => ({ colorId: g.colorId, color: g.color, pixels: g.size, bbox: g.bbox })),
+      regionCount: r.regionCount, smallRegionCount: r.smallRegionCount, smallRegionRatio: r.smallRegionRatio,
+      regions: r.regions.map((g) => ({ colorId: g.colorId, color: g.color, pixels: g.size, small: g.small, bbox: g.bbox })),
       difficultyScore: r.score, features: r.features,
     };
     download(cur.name.replace(/\.png$/i, '') + '-analiz.json', JSON.stringify(data, null, 2), 'application/json');
@@ -419,11 +422,11 @@
   });
   $('exportCsv').addEventListener('click', async () => {
     const items = (await DB.all()).sort((a, b) => a.date - b.date);
-    const head = ['dosya', 'tarih', 'genislik', 'yukseklik', 'renk_sayisi', 'seffaf_orani', 'outline', 'zorluk_grubu', 'bolge_sayisi', 'zorluk_skoru'];
+    const head = ['dosya', 'tarih', 'genislik', 'yukseklik', 'renk_sayisi', 'seffaf_orani', 'outline', 'zorluk_grubu', 'bolge_sayisi', 'kucuk_bolge_orani', 'zorluk_skoru'];
     const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
     const rows = items.map((it) => {
       const s = it.summary;
-      return [it.name, new Date(it.date).toISOString(), s.width, s.height, s.colors, s.transparentRatio.toFixed(4), s.outline ? 'var' : 'yok', s.group, s.regions, s.score].map(q).join(',');
+      return [it.name, new Date(it.date).toISOString(), s.width, s.height, s.colors, s.transparentRatio.toFixed(4), s.outline ? 'var' : 'yok', s.group, s.regions, s.smallRegionRatio === undefined ? '' : s.smallRegionRatio.toFixed(4), s.score].map(q).join(',');
     });
     download('pixel-analyzer-gecmis.csv', '﻿' + [head.join(','), ...rows].join('\n'), 'text/csv');
   });

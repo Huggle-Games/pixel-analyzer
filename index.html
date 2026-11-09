@@ -60,12 +60,12 @@
             <div id="regHist" class="regHist"></div>
             <div class="tableWrap">
               <table class="regTable">
-                <thead><tr><th>#</th><th>Renk</th><th class="num">Piksel</th><th>Konum (x,y → x,y)</th></tr></thead>
+                <thead><tr><th>#</th><th>Renk</th><th class="num">Piksel</th><th>Tür</th><th>Konum (x,y → x,y)</th></tr></thead>
                 <tbody id="regBody"></tbody>
               </table>
             </div>
             <button id="regMore" class="btn ghost" hidden></button>
-            <p class="muted small note">Bölge = aynı renkte, çapraz dahil (8 yönlü) birbirine değen pikseller. Satıra tıkla: o bölge seçilir. Renk id'sine tıkla: o rengin bölgeleri listelenir.</p>
+            <p class="muted small note">Bölge = aynı renkte, çapraz dahil (8 yönlü) birbirine değen pikseller. Küçük bölge = 1–3 px. Satıra tıkla: o bölge seçilir. Renk id'sine tıkla: o rengin bölgeleri listelenir.</p>
           </div>
 
           <div id="listColors" hidden>
@@ -118,6 +118,7 @@
             <div class="card"><div class="k">Outline</div><div id="vOl" class="v"></div><div id="vOlD" class="muted small"></div></div>
             <div class="card"><div class="k">İçerik sınırları</div><div id="vBox" class="v"></div><div id="vBoxD" class="muted small"></div></div>
             <div class="card"><div class="k">Bölge sayısı</div><div id="vReg" class="v"></div><div id="vRegD" class="muted small"></div></div>
+            <div class="card"><div class="k">Küçük bölge oranı</div><div id="vSmall" class="v"></div><div id="vSmallD" class="muted small"></div></div>
           </div>
       </div>
     </div>
